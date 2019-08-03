@@ -1,0 +1,129 @@
+#!/bin/bash
+# rhel-disklist
+# A simple bash script which shows disk information.
+#
+# Usage:
+#	-l - Show all uniq devices attached to host with wwid and size in GB
+#	-t - Show volumetry sum in GB
+#
+# For environments with multipathing it's useful because it doesn't show
+# the duplicated wwid ones.
+#
+# ToDO:
+#	- Implement a way to identify what is the multipathing software being
+#	  used and show the device mapper name in the list
+#	- Modify check_linux_version to compare kernel versions instead OS nickname
+#	- Include sys_rhel8
+#	- Refactor the entire code, because this  is an amateur piece of my learning path in
+#	  programming. blah!
+#
+# Author: Vitor Zanoni - zanoni.av.gmail.com
+#
+
+# Check previlegies
+[ $EUID -ne 0 ] && exit 1
+
+show_help () {
+
+                echo "Usage:"
+                echo "  -l(ist) - Show all uniq devices attached to host with wwid and size in GB"
+                echo "  -t(otal) - Volumetry Sum in gb"
+
+}
+
+sys_rhel5_old () {
+
+for disk in $(ls /dev/{s,v}d* | grep -wEo '[s,v]d[a-z]+')
+        do
+                unset SIZE WWID
+                SIZE="$( udevinfo -ap /sys/block/$disk |grep size | awk -F'"' '{print $2}')"
+                WWID="$( /sbin/scsi_id -g -u -s /block/$disk)"
+                [ "${WWID}" ] && grep -q '3700' <<< "${WWID}" && continue
+                echo "${disk} $(((SIZE*512)/1000/1000/1000)) GB ${WWID}"
+        done  2>/dev/null
+
+[ -d "/dev/cciss/" ] && for disk in $(ls /dev/cciss/* | grep -vE 'p[0-9]+' | awk -F '/' '{ print $NF }' )
+        do
+                unset SIZE WWID
+                SIZE="$( udevinfo -ap "/sys/block/cciss!$disk/" |grep size | awk -F'"' '{print $2}')"
+                echo "${disk} $(((SIZE*512)/1000/1000/1000)) GB <cciss>"
+        done  2>/dev/null
+}
+
+
+sys_rhel6 () {
+
+for disk in $(ls /dev/{s,v}d* | grep -wEo '[s,v]d[a-z]+')
+        do
+                unset SIZE WWID
+                SIZE="$( cat /sys/class/block/$disk/size )"
+                WWID="$( /lib/udev/scsi_id -g -u /dev/$disk)"
+                [ "${WWID}" ] && grep -q '3700' <<< "${WWID}" && continue
+                echo "${disk} $(((SIZE*512)/1000/1000/1000)) GB ${WWID}"
+        done  2>/dev/null
+
+[ -d "/dev/cciss/" ] && for disk in $(ls /dev/cciss/* | grep -vE 'p[0-9]+' | awk -F '/' '{ print $NF }' )
+        do
+                unset SIZE WWID
+                SIZE="$( cat /sys/class/block/$disk/size )"
+                echo "${disk} $(((SIZE*512)/1000/1000/1000)) GB <cciss>"
+        done  2>/dev/null
+
+}
+
+
+sys_rhel7 () {
+
+for disk in $(ls /dev/{s,v}d* | grep -wEo '[s,v]d[a-z]+')
+        do
+                unset SIZE WWID
+                SIZE="$( cat /sys/class/block/$disk/size )"
+                WWID="$( /usr/lib/udev/scsi_id -g -u /dev/$disk)"
+                [ "${WWID}" ] && grep -q '3700' <<< "${WWID}" && continue
+                echo "${disk} $(((SIZE*512)/1000/1000/1000)) GB ${WWID}"
+        done  2>/dev/null
+
+[ -d "/dev/cciss/" ] && for disk in $(ls /dev/cciss/* | grep -vE 'p[0-9]+' | awk -F '/' '{ print $NF }' )
+        do
+                unset SIZE WWID
+                SIZE="$( cat /sys/class/block/$disk/size )"
+                echo "${disk} $(((SIZE*512)/1000/1000/1000)) GB <cciss>"
+        done  2>/dev/null
+
+}
+
+
+
+
+# Check Linux Version
+check_linux_version () {
+
+version="$(cat /etc/redhat-release | awk '{print $8}')";
+rt="0";
+
+[ ${version} = "(Maipo)" ] && sys_rhel7 ; rt=0
+[ ${version} = "(Santiago)" ] && sys_rhel6 ; rt=0
+[ ${version} = "(Tikanga)" ] && sys_rhel5_old ; rt=0
+[ ${version} = "(Nahant" ] && sys_rhel5_old ; rt=0
+[ ${rt} -ne 0 ] && exit 1
+}
+
+
+# Check OS version and run the proper funtion
+
+while getopts "hlt" opt; do
+    case "$opt" in
+    h)
+        show_help
+        exit 0
+        ;;
+    l)
+        check_linux_version | sort -uk 4 | column -t
+        exit 0
+        ;;
+    t)
+        check_linux_version | sort -uk 4 | awk '{sum += $2} END {print sum" GB"}'
+        exit 0
+        ;;
+    esac
+done
