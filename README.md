@@ -1,6 +1,6 @@
 # rhel-disklist
 
- rhel-disklist - A simple bash script which shows disk information.
+A simple bash script which shows disk information.
 
  Usage:
  
@@ -21,7 +21,3 @@
 	- Refactor the entire code, because this is an amateur piece of my learning path in
 	  programming. blah!
 	- Add suport for other linux servers distros.
-	
-
- Author: Vitor Zanoni - zanoni.av.gmail.com
-
