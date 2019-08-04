@@ -22,4 +22,4 @@ A simple bash script which shows disk information.
 	  programming. blah!
 	- Add suport for other linux servers distros.
 
-Works in RHEL5, RHEL6 and RHEL7 environments. for Physical and Virtual servers.
+Works in RHEL4, 5, 6 and 7 environments. for Physical and Virtual servers.
